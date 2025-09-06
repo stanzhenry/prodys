@@ -1,21 +1,9 @@
 {
   "name": "mitosis-proxy",
   "version": "1.0.0",
-  "description": "A simple Vercel serverless proxy to bypass CORS for api-mainnet.mitosis.org",
-  "main": "api/proxy.js",
+  "private": true,
   "scripts": {
     "dev": "vercel dev",
-    "start": "vercel dev",
-    "deploy": "vercel --prod"
-  },
-  "keywords": [
-    "vercel",
-    "proxy",
-    "cors",
-    "mitosis",
-    "api"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
-  "dependencies": {}
+    "start": "vercel dev"
+  }
 }
