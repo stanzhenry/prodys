@@ -1,24 +1,21 @@
 export default async function handler(req, res) {
-  const targetBase = "https://api-mainnet.mitosis.org";
-
-  // Get the path after /api/proxy
-  const slug = req.query.slug || [];
-  const targetPath = "/" + slug.join("/");
-
-  const targetUrl = targetBase + targetPath;
+  const { slug = [] } = req.query;
+  const targetUrl = `https://api-mainnet.mitosis.org/${slug.join("/")}`;
 
   try {
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: { "Content-Type": "application/json" }
+      headers: {
+        "Content-Type": "application/json",
+        ...req.headers,
+      },
+      body: ["GET", "HEAD"].includes(req.method) ? undefined : req.body,
     });
 
     const text = await response.text();
+
     res.status(response.status).send(text);
-  } catch (err) {
-    res.status(500).json({
-      error: "Proxy request failed",
-      details: err.message
-    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 }
