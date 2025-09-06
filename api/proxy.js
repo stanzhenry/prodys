@@ -1,38 +1,21 @@
-// File: api/proxy.js
-
 export default async function handler(req, res) {
-  const targetBase = "https://api-mainnet.mitosis.org"; // or dognet if needed
+  const targetBase = "https://api-mainnet.mitosis.org";
 
-  // Strip off `/api/proxy` prefix and forward the rest
-  const targetUrl = targetBase + req.url.replace(/^\/api\/proxy/, "");
+  // remove `/api/proxy` prefix from request URL
+  const targetPath = req.url.replace(/^\/api\/proxy/, "");
+
+  const targetUrl = targetBase + targetPath;
 
   try {
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: {
-        ...req.headers,
-        host: new URL(targetBase).host, // fix host header
-      },
-      body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+      headers: { "Content-Type": "application/json" },
     });
 
-    // Mirror response headers
-    response.headers.forEach((value, key) => {
-      res.setHeader(key, value);
-    });
+    const data = await response.text();
 
-    // ✅ Add CORS headers so browser accepts it
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    if (req.method === "OPTIONS") {
-      return res.status(200).end();
-    }
-
-    const data = await response.arrayBuffer();
-    res.status(response.status).send(Buffer.from(data));
+    res.status(response.status).send(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Proxy request failed", details: err.message });
   }
 }
