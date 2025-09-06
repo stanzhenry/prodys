@@ -23,7 +23,9 @@ async function parseBody(req) {
 }
 
 export default async function handler(req, res) {
-  const { slug, ...queryParams } = req.query;
+  // THE FIX IS ON THIS LINE: slug = []
+  const { slug = [], ...queryParams } = req.query;
+
   const queryString = new URLSearchParams(queryParams).toString();
   const targetPath = slug.join("/");
   const targetUrl = `https://api-mainnet.mitosis.org/${targetPath}${
@@ -33,7 +35,6 @@ export default async function handler(req, res) {
   console.log(`Forwarding request to: ${targetUrl}`);
 
   try {
-    // Manually parse the body first
     const requestBody = await parseBody(req);
 
     const options = {
@@ -44,7 +45,6 @@ export default async function handler(req, res) {
       },
     };
 
-    // Add the parsed body to the options if it exists
     if (requestBody) {
       options.body = JSON.stringify(requestBody);
     }
