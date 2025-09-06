@@ -1,4 +1,4 @@
-// A helper function to parse the body from the raw request stream
+// Helper: parse body safely
 async function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -10,39 +10,39 @@ async function parseBody(req) {
         try {
           resolve(JSON.parse(body));
         } catch (error) {
-          reject(error);
+          resolve(body); // fallback: send raw text if not JSON
         }
       } else {
-        resolve(null); // Resolve with null if there's no body
+        resolve(null);
       }
     });
-    req.on("error", (err) => {
-      reject(err);
-    });
+    req.on("error", reject);
   });
 }
 
 export default async function handler(req, res) {
   try {
-    // slug will be an array if present, otherwise []
-    const { slug = [] } = req.query;
+    // Extract slug from dynamic route
+    let { slug } = req.query;
+    if (!slug) slug = [];
+    if (!Array.isArray(slug)) slug = [slug]; // normalize to array
 
-    // Keep only query params that are not "slug"
+    // Reconstruct clean path
+    const targetPath = slug.join("/");
+
+    // Extract actual query params (remove slug completely)
     const { slug: _ignore, ...queryParams } = req.query;
     const queryString = new URLSearchParams(queryParams).toString();
 
-    // Join path parts safely
-    const targetPath = Array.isArray(slug) ? slug.join("/") : slug;
     const targetUrl = `https://api-mainnet.mitosis.org/${targetPath}${
       queryString ? `?${queryString}` : ""
     }`;
 
-    console.log(`Forwarding request to: ${targetUrl}`);
+    console.log("Forwarding request to:", targetUrl);
 
-    // Parse request body
+    // Handle body
     const requestBody = await parseBody(req);
 
-    // Build fetch options
     const options = {
       method: req.method,
       headers: {
@@ -55,27 +55,25 @@ export default async function handler(req, res) {
     }
 
     if (requestBody && !["GET", "HEAD"].includes(req.method)) {
-      options.body = JSON.stringify(requestBody);
+      options.body =
+        typeof requestBody === "string"
+          ? requestBody
+          : JSON.stringify(requestBody);
     }
 
-    // Forward to target API
     const apiResponse = await fetch(targetUrl, options);
 
-    // Copy status + headers
     res.status(apiResponse.status);
     for (const [name, value] of apiResponse.headers.entries()) {
       res.setHeader(name, value);
     }
 
-    // Pipe response body
     const body = await apiResponse.text();
     res.send(body);
-
   } catch (error) {
     console.error("Proxy error:", error);
-    res.status(500).json({
-      error: "An error occurred in the proxy route.",
-      message: error.message,
-    });
+    res
+      .status(500)
+      .json({ error: "Proxy failed", message: error.message });
   }
 }
